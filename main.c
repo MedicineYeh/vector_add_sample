@@ -127,7 +127,7 @@ int main(int argc, char **argv)
         clGetDeviceInfo(devices[i], CL_DEVICE_NAME, 256, devname[i], 0);
         printf("\t%d: %s", i, devname[i]);
         clGetDeviceInfo(devices[i], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(int), &cb, 0);
-        printf("  - %d\n", cb);
+        printf("  - %d\n", (int)cb);
     }
 
     queue = clCreateCommandQueue(context, devices[0], 0, 0);
