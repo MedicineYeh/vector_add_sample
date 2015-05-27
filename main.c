@@ -103,6 +103,13 @@ int main(int argc, char **argv)
              return 0;
              );
 
+    printf("Found %d platforms:\n", num);
+    for (i = 0; i < num; i++) {
+        char str[1024];
+        clGetPlatformInfo (platforms[i], CL_PLATFORM_NAME, 1024, str, NULL);
+        printf("\t%d: %s\n", i, str);
+    }
+
     prop[0] = CL_CONTEXT_PLATFORM;
     prop[1] = (cl_context_properties)platforms[0];
     prop[2] = 0;
@@ -115,10 +122,12 @@ int main(int argc, char **argv)
     checkExit(cb, "Can't get devices\n");
     num_total_devices = cb / sizeof(cl_device_id);
 
+    printf("Found %d devices:\n", num_total_devices);
     for (i = 0; i < num_total_devices; i++) {
-        clGetDeviceInfo(devices[i], CL_DEVICE_NAME, 0, NULL, &cb);
-        clGetDeviceInfo(devices[i], CL_DEVICE_NAME, cb, devname, 0);
-        printf("Device(%d/%d): %s\n", i, num_total_devices, devname[i]);
+        clGetDeviceInfo(devices[i], CL_DEVICE_NAME, 256, devname[i], 0);
+        printf("\t%d: %s", i, devname[i]);
+        clGetDeviceInfo(devices[i], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(int), &cb, 0);
+        printf("  - %d\n", cb);
     }
 
     queue = clCreateCommandQueue(context, devices[0], 0, 0);
@@ -127,9 +136,9 @@ int main(int argc, char **argv)
     program = load_program(context, devices[0], "shader.cl");
     checkExit(program, "Fail to build program\n");
 
-    cl_a = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(cl_float) * DATA_SIZE, &a[0], NULL);
-    cl_b = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(cl_float) * DATA_SIZE, &b[0], NULL);
-    cl_res = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(cl_float) * DATA_SIZE, &res[0], NULL);
+    cl_a = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float) * DATA_SIZE, NULL, NULL);
+    cl_b = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float) * DATA_SIZE, NULL, NULL);
+    cl_res = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_float) * DATA_SIZE, NULL, NULL);
     if (cl_a == 0 || 
         cl_b == 0 || 
         cl_res == 0) {
