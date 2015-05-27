@@ -21,6 +21,26 @@
                                  if (err != CL_SUCCESS) {statement}
 #define checkExit(value, message) if (value == 0) {printf(message); goto release;}
 
+double get_event_exec_time(cl_event event)
+{
+    cl_ulong start_time, end_time;
+    /*Get start device counter for the event*/
+    clGetEventProfilingInfo (event,
+            CL_PROFILING_COMMAND_START,
+            sizeof(cl_ulong),
+            &start_time,
+            NULL);
+    /*Get end device counter for the event*/
+    clGetEventProfilingInfo (event,
+            CL_PROFILING_COMMAND_END,
+            sizeof(cl_ulong),
+            &end_time,
+            NULL);
+    /*Convert the counter values to milli seconds*/
+    double total_time = (end_time - start_time) * 1e-6;
+    return total_time;
+}
+
 cl_program load_program(cl_context context, cl_device_id device, const char* filename)
 {
     FILE *fp = fopen(filename, "rt");
@@ -73,6 +93,7 @@ int main(int argc, char **argv)
     cl_program program = 0;
     cl_mem cl_a = 0, cl_b = 0, cl_res = 0;
     cl_kernel adder = 0;
+    cl_event event;
     int num_total_devices = 0;
     char devname[16][256] = {{0}};
     size_t cb, work_size;
@@ -130,7 +151,8 @@ int main(int argc, char **argv)
         printf("  - %d\n", (int)cb);
     }
 
-    queue = clCreateCommandQueue(context, devices[0], 0, 0);
+    //Specify the queue to be profile-able
+    queue = clCreateCommandQueue(context, devices[0], CL_QUEUE_PROFILING_ENABLE, 0);
     checkExit(queue, "Can't create command queue\n");
 
     program = load_program(context, devices[0], "shader.cl");
@@ -167,17 +189,73 @@ int main(int argc, char **argv)
 
     work_size = DATA_SIZE;
 
-    checkErr(clEnqueueNDRangeKernel(queue, adder, 1, 0, &work_size, 0, 0, 0, 0),
+    checkErr(clEnqueueNDRangeKernel(queue, adder, 1, 0, &work_size, 0, 0, 0, &event),
              printf("Can't enqueue kernel\n");
             );
     checkErr(clEnqueueReadBuffer(queue, cl_res, CL_TRUE, 0, sizeof(cl_float) * DATA_SIZE, res, 0, 0, 0),
              printf("Can't enqueue read buffer\n");
             );
 
+    clWaitForEvents(1, &event);
+    printf("Execution Time: %.04lf ms\n\n", get_event_exec_time(event));
+
+    //Make sure everything is done before we do anything
+    clFinish(queue);
+    err = 0;
     for (i = 0; i < DATA_SIZE; i++) {
-        printf("%f + %f = %f(answer %f)\n", a[i], b[i], res[i], a[i] + b[i]);
+        if (res[i] != a[i] + b[i]) {
+            printf("%f + %f = %f(answer %f)\n", a[i], b[i], res[i], a[i] + b[i]);
+            err++;
+        }
     }
+    if (err == 0)
+        printf("Validation passed\n");
+    else
+        printf("Validation failed\n");
     printf("------\n");
+
+    //--------------------------------
+    //Second test
+    for(i = 0; i < DATA_SIZE; i++) {
+        a[i] = i;
+        b[i] = i;
+        res[i] = 0;
+    }
+
+    checkErr(clEnqueueWriteBuffer(queue, cl_a, CL_TRUE, 0, 
+                                  sizeof(cl_float) * DATA_SIZE, a, 0, 0, 0),
+             printf("ERROR ! WRITE BUFFER 1\n");
+             goto release;
+            );
+    checkErr(clEnqueueWriteBuffer(queue, cl_b, CL_TRUE, 0, 
+                                  sizeof(cl_float) * DATA_SIZE, b, 0, 0, 0),
+             printf("ERROR ! WRITE BUFFER 2\n");
+             goto release;
+            );
+
+    checkErr(clEnqueueNDRangeKernel(queue, adder, 1, 0, &work_size, 0, 0, 0, &event),
+             printf("Can't enqueue kernel\n");
+            );
+    checkErr(clEnqueueReadBuffer(queue, cl_res, CL_TRUE, 0, sizeof(cl_float) * DATA_SIZE, res, 0, 0, 0),
+             printf("Can't enqueue read buffer\n");
+            );
+
+    clWaitForEvents(1, &event);
+    printf("Execution Time: %.04lf ms\n\n", get_event_exec_time(event));
+
+    //Make sure everything is done before we do anything
+    clFinish(queue);
+    err = 0;
+    for (i = 0; i < DATA_SIZE; i++) {
+        if (res[i] != a[i] + b[i]) {
+            printf("%f + %f = %f(answer %f)\n", a[i], b[i], res[i], a[i] + b[i]);
+            err++;
+        }
+    }
+    if (err == 0)
+        printf("Validation passed\n");
+    else
+        printf("Validation failed\n");
 
 release:
     clReleaseKernel(adder);
