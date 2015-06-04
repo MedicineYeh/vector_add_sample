@@ -1,15 +1,34 @@
-CC=gcc
-CFLAGS=-g -Wall
-LFLAGS=-lOpenCL
+-include ./config.mak
+#get all c files.
+SRCS=$(wildcard *.c)
+OBJS=$(addprefix objs/, $(patsubst %.c,%.o,$(SRCS)))
+DEPS=$(addprefix objs/, $(patsubst %.c,%.d,$(SRCS)))
+LOCAL_CFLAGS=
+TARGET=cl_test
 
+.PHONY: all clean execute directories
 
-all	:	cl_test
+all	:	directories $(TARGET)
 
-execute	:	cl_test
-	./cl_test
+$(TARGET)	:	$(OBJS)
+	@echo "  LINK  $@"
+	@$(CC) $^ -o $@ $(CFLAGS) $(LFLAGS) $(LOCAL_CFLAGS)
 
-cl_test	:	main.c
-	$(CC) $< -o $@ $(CFLAGS) $(LFLAGS)
+objs/%.o	:	%.c
+	@echo "  CC    $@"
+	@$(CC) -c $< -o $@ $(CFLAGS) $(LOCAL_CFLAGS)
+
+%.d	:	%.c
+	@$(CC) -MM $(VPMU_CFLAGS) $^ > $@
+
+directories	:	
+	@mkdir -p objs
 
 clean	:	
-	rm cl_test
+	rm objs/* $(TARGET)
+
+execute	:	all
+	./$(TARGET)
+
+# Include automatically generated dependency files
+-include $(DEPS)
