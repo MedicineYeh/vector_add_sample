@@ -19,7 +19,7 @@ objs/%.o	:	%.c
 	@$(CC) -c $< -o $@ $(CFLAGS) $(LOCAL_CFLAGS)
 
 %.d	:	%.c
-	@$(CC) -MM $(VPMU_CFLAGS) $^ > $@
+	@$(CC) -MM $^ > $@
 
 directories	:	
 	@mkdir -p objs
