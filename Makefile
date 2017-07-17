@@ -3,7 +3,7 @@
 SRCS=$(wildcard *.c)
 OBJS=$(addprefix objs/, $(patsubst %.c,%.o,$(SRCS)))
 DEPS=$(addprefix objs/, $(patsubst %.c,%.d,$(SRCS)))
-LOCAL_CFLAGS=
+LOCAL_CFLAGS=-Wno-deprecated-declarations
 TARGET=cl_test
 
 .PHONY: all clean execute directories
@@ -18,14 +18,14 @@ objs/%.o	:	%.c
 	@echo "  CC    $@"
 	@$(CC) -c $< -o $@ $(CFLAGS) $(LOCAL_CFLAGS)
 
-%.d	:	%.c
-	@$(CC) -MM $^ > $@
+objs/%.d	:	%.c
+	@$(CC) -MM $^ -MT $(patsubst %.d,%.o,$@) > $@
 
 directories	:	
 	@mkdir -p objs
 
 clean	:	
-	rm objs/* $(TARGET)
+	rm -f objs/* $(TARGET)
 
 execute	:	all
 	./$(TARGET)
