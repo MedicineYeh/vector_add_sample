@@ -1,2 +1,4 @@
 cl_test
-objs
+objs/
+*.out
+*.bin
