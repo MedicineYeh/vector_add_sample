@@ -2,3 +2,4 @@ cl_test
 objs/
 *.out
 *.bin
+tags
