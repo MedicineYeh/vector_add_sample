@@ -1,34 +1,42 @@
--include ./config.mak
-#get all c files.
-SRCS=$(wildcard *.c)
+#!/usr/bin/make
+
+# Name of generated binary
+TARGET=cl_test
+# All your source codes to build the target
+SRCS=main.c
+# Automatic generate other deps
 OBJS=$(addprefix objs/, $(patsubst %.c,%.o,$(SRCS)))
 DEPS=$(addprefix objs/, $(patsubst %.c,%.d,$(SRCS)))
-LOCAL_CFLAGS=-Wno-deprecated-declarations
-TARGET=cl_test
+
+CC=gcc
+CFLAGS=-g -Wall
+LFLAGS=-lOpenCL
+EXTRA_CFLAGS=-Wno-deprecated-declarations
 
 .PHONY: all clean execute directories
 
-all	:	directories $(TARGET)
+all : directories $(TARGET)
 
-$(TARGET)	:	$(OBJS)
-	@echo "  LINK  $@"
-	@$(CC) $^ -o $@ $(CFLAGS) $(LFLAGS) $(LOCAL_CFLAGS)
 
-objs/%.o	:	%.c
-	@echo "  CC    $@"
-	@$(CC) -c $< -o $@ $(CFLAGS) $(LOCAL_CFLAGS)
+execute : all
+	./$(TARGET)
 
-objs/%.d	:	%.c
-	@$(CC) -MM $^ -MT $(patsubst %.d,%.o,$@) > $@
-
-directories	:	
-	@mkdir -p objs
-
-clean	:	
+clean :
 	rm -f objs/* $(TARGET)
 
-execute	:	all
-	./$(TARGET)
+directories :
+	@mkdir -p objs
+
+$(TARGET) : $(OBJS)
+	@echo "  LINK  $@"
+	@$(CC) $^ -o $@ $(CFLAGS) $(LFLAGS) $(EXTRA_CFLAGS)
+
+objs/%.o : %.c
+	@echo "  CC    $@"
+	@$(CC) -c $< -o $@ $(CFLAGS) $(EXTRA_CFLAGS)
+
+objs/%.d : %.c
+	@$(CC) -MM $^ -MT $(patsubst %.d,%.o,$@) > $@
 
 # Include automatically generated dependency files
 -include $(DEPS)
